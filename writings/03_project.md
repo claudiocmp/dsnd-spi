@@ -50,7 +50,7 @@ which is preferred to the mean absolute error due to its tendency to penalise mo
 
 ## Requirements
 
-Requirements for the python environment can be found in `<repo_folder>/requirements.yml`.
+Requirements for the python environment can be found in the `requirements.yml` file associated with this repository.
 
 <br/>
 
@@ -173,6 +173,8 @@ Features and calculated statistics relevant to the problem have been reported an
 
 </div>
 
+No values are missing in the data:
+
 ```
 Date          0
 Open          0
@@ -190,7 +192,11 @@ Adj_Volume    0
 Ticker        0
 ```
 
+And statistics result reasonable. More specifically:
 
+* `Open`, `High`, `Low` and `Close` show similar mean and standard deviation, as we would expect from daily data. Also the`Adj_*` relative ones report a similar trend.
+* `Dividend` is mostly zero, which makes sense as these are usually distributed monthly, quarterly or annually. Therefore, most of the daily data points should be zero.
+* `Split` report whether stocks are split in the event of high price. This is quite of a rare event to happen, so it is reasonable that no split are present throughout almost all our data points. It is worth noting that  no aggregation is performed in this dataset, as there are no data points with a split value less than 1.
 
 </style>
 
@@ -337,6 +343,8 @@ Ticker        0
 </table>
 
 </div>
+
+The time frame available from Quandl dataset is equal for all the stocks, and spans through 1577 days from 03/09/2013 until 28/12/2017.
 
 
 <div>
@@ -543,18 +551,18 @@ Ticker        0
 
 ### Data Visualization
 
-Build data visualizations to further convey the information associated with your data exploration journey. Ensure that visualizations are appropriate for the data values you are plotting.
+Here, all the time-series are plotted by feature. It is noticeable how the split on a few companies, most relevantly Apple (AAPL, blue) and Chevron Corporation (CVX, brown), affect the stock price and the dividend.
 
 ![png](output_7_1.png)
 
 ### Features Correlation
 
+Here we plot the correlation matrix of our dataset. It is noticeable how 
 
 
 
 
-
-![png](output_8_1.png)
+![](output_8_1.png)
 
 
 ## Methodology
@@ -563,9 +571,9 @@ Build data visualizations to further convey the information associated with your
 
 Pre-processing steps consist of:
 * **scaling (standardization)**: whereas stock prices and dividends are of similar nature (currency), volume and split occur at a different unit.
-* **windowing**: as the data comes in the form of a time series, it is required to be stored as an time-related array of features.
-* **closing price projection**: we extract the adjusted closing price for each window, at 1, 7, 14 and 28 days.
-* **split**: train and test datasets are created in a ratio of 70-30.
+* **windowing**: as the data comes in the form of a time series, it is required to be stored as an time-related array of features. Therefore, the first data point in the processed dataset starts $n_w$ days later than the start date of the initial dataset, where $n_w$ is the window size.
+* **closing price projection**: the adjusted closing price at 1, 7, 14 and 28 days from the last data-point if window. Therefore, the last window in the processed dataset is 28 days earlier than the end date of the initial dataset.
+* **split between training and test sets**: train and test datasets are created in a ratio of 70-30.
 
 ### Implementation
 
