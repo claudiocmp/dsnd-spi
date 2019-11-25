@@ -365,6 +365,10 @@ Here we plot the correlation matrix of our dataset. It is noticeable how prices 
 
 ![png](output_8_1.png)
 
+<br/>
+
+
+
 # Methodology
 
 ## Data Pre-processing
@@ -378,7 +382,7 @@ Pre-processing steps consist of a series of steps, applied per each ticker serie
 
 
 
-### Technical Indicators and Feature Engineering
+### Technical Indicators for Feature Engineering
 
 A series of indicators are engineered to provide more features to the dataset.
 
@@ -543,43 +547,29 @@ The objective output is a 4-class vector which represent the closing stock price
 Eventually, 4 different models which handle 1-d output might be trained for the scope. Here, Grid-Search is not performed yet, as it might lead to a data leak due to the previous scaling. Mean squared error is used to evaluate the model performances on the training and test sets. <br/>
 The first run produces a model whose performances show a clear overfitting (MSE on training is about 6 times lower than the MSE on the test set).
 
+Here, the pseudocode for the above-mentioned processes is laid down. For the extensive code and docstrings, you might want to refer to the project repository.
 
-
-```python
+```
 def fit_on_all_data(mdl, X, y, train_percentage=0.7):
-    """ train a fit-able object on the whole dataset
-    
-    Parameters
-    ----------
-    mdl : model, pipeline or GridSearchCV
-        object to train
-    
-    train_percentage : float
-        [optional] split training and validation set (default=0.7)
-    
-    Returns
-    -------
-    object
-        trained object
+    """ PSEUDOCODE
     """
-    tickers = df['Ticker'].unique()
-    X_train, X_valid, y_train, y_valid, t_dates = gen_train_test_and_valid_data(tickers[0], X, y,train_percentage)
-    xt = np.array(X_train)
-    yt = np.array(y_train)
-    xv = np.array(X_valid)
-    yv = np.array(y_valid)
-    for t in tickers[1:]:
-        X_train, X_valid, y_train, y_valid, t_dates = gen_train_test_and_valid_data(t, X_ss, y,0.7)
-        xt = np.concatenate((xt,X_train))
-        yt = np.concatenate((yt,y_train))
+    X_t, X_v, _, _, _ = gen_train_test_and_valid_data(unique_tickers[0], X, y, train_percentage)
+    xt = np.array(X_t)
+    yt = np.array(y_t)
+    xv = np.array(X_v)
+    yv = np.array(y_v)
+    for t in unique_tickers[1:]:
+        X_t, X_v, _, _, _ = gen_train_test_and_valid_data(t, X, y,0.7)
+        xt = np.concatenate((xt,X_t))
+        yt = np.concatenate((yt,y_t))
     mdl.fit(xt, yt)
     return mdl
 ```
 
 
-```python
+```
 def validate_model(model, X, y, ticker, plot=True, print_output=True, ts_split=0.7):
-    """
+    """ PSEUDOCODE
     """
     X_train, X_valid, y_train, y_valid, dates = gen_train_test_and_valid_data(ticker, X, y, ts_split=ts_split)
     # predictions
@@ -588,15 +578,10 @@ def validate_model(model, X, y, ticker, plot=True, print_output=True, ts_split=0
     # performances - scale inverse
     rmse_train = np.sqrt(mean_squared_error(y_train, y_pred_train))
     rmse_valid = np.sqrt(mean_squared_error(y_valid, y_pred_valid))
-    r2_train   = r2_score(y_train, y_pred_train)
-    r2_valid   = r2_score(y_valid, y_pred_valid)
     if print_output:
         print('{:=^50}'.format("VALIDATION FOR "+ticker))
         print("TRAIN RMSE:    ",rmse_train)
         print("VALID RMSE:    ",rmse_valid)
-        print('-')
-        print("TRAIN R2 Error:",r2_train)
-        print("VALID R2 Error:",r2_valid)
     
     if plot:
         fig,axs = plt.subplots(2,2,figsize=(16,8))
@@ -612,29 +597,28 @@ def validate_model(model, X, y, ticker, plot=True, print_output=True, ts_split=0
                 axs[i][j].set_title('Adjusted Close Price @ {} days'.format(days[idx]))
                 axs[i][j].legend()
         plt.show();
-    return rmse_train, rmse_valid,  r2_train, r2_valid
+    return rmse_train, rmse_valid
 ```
 
 
-```python
-def validate_on_all_data(model, ts_split=0.7,  plot_singles=False, plot_overall=True):
+```
+def validate_on_all_data(model, X, y, ts_split=0.7):
+    """ PSEUDOCODE
+    """
     results = []
-    tickers = df['Ticker'].unique()
-    for t in tickers:
-        r1,r2,r3,r4 = validate_model(model,X_ss, y, t, plot=plot_singles, print_output=False)
-        results.append([r1,r2,r3,r4])
-    ks = np.array(tickers)
-    vs = np.array(results).T
+    for t in unique_tickers:
+        r1,r2 = validate_model(model, X, y, t, plot=plot_singles)
+        results.append([r1,r2])
+    results = results.transpose()
     # create a df for results and plot from most to least predictable ticker
-    res = pd.DataFrame({'Ticker':ks,'RMSE_train':vs[0],'RMSE_valid':vs[1],'R2_train':vs[2],'R2_valid':vs[3]}).sort_values(by='RMSE_valid').reset_index(drop=True)
-    if plot_overall:
-        ax = res.plot(x='Ticker',y=['RMSE_train','RMSE_valid'],title='RMSE Validation for all Tickers')
-        ax.set_xticks(res.index)
-        ax.set_xticklabels(res['Ticker'],rotation=90)
-        plt.grid()
-        plt.show();
+    res = pd.DataFrame({'Ticker':unique_tickers,
+                        'RMSE_train':results[0],
+                        'RMSE_valid':results[1]})
+    res = res.sort_values(by='RMSE_valid')
     return res
 ```
+
+<br/>
 
 ### Benchmark Model
 
@@ -886,6 +870,7 @@ df_results.head()
         text-align: right;
     }
 </style>
+
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
