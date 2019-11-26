@@ -504,13 +504,9 @@ Here we report the dataset shapes in case of a window of 8 days (and so the tech
 
 ### Scaling
 
-Here we scale the whole dataset through a standard scaling.
+Here we scale the whole dataset through a standard scaler; the data will had mean $\mu=0.0$ and standard deviation $\sigma=1.0$.
 
-
-```python
-ss = StandardScaler()
-X_ss = ss.fit_transform(X)
-```
+<br/>
 
 ### Train-Test  and Validation split
 
@@ -780,7 +776,54 @@ For limitation in training time (here not reported), as well as in poorer result
 
 ## Refinements
 
-To avoid overfitting, I repeat what above, but by building a pipeline object which comprehends a scaler to then perform a grid search to tune the hyper-parameters. Therefore, the windowing is done again, but omitting the scaling.
+To avoid overfitting, I repeat what above, but by building a pipeline object which comprehends a scaler to then perform a grid search to tune the hyper-parameters. Therefore, the windowing is done again, but omitting the scaling. Here we have a list of the models trained as well as the parameters to search for.
+
+```python
+p1 = Pipeline([
+    ('scaler', StandardScaler()),
+    ('reg', RandomForestRegressor())
+])
+s1 = {
+    'reg__n_estimators':[10,15],
+    'reg__max_depth':[4,8,16],
+    'reg__max_features':['auto','sqrt','log2']
+}
+p2 = Pipeline([
+    ('scaler', StandardScaler()),
+    ('reg', MultiOutputRegressor(SGDRegressor()))
+])
+s2 = {
+    'reg__estimator__max_iter':[1000,2000],
+    'reg__estimator__epsilon': [0.5,0.1,0.02],
+}
+p3 = Pipeline([
+    ('scaler', StandardScaler()),
+    ('reg', MultiOutputRegressor(SVR(gamma='auto')))
+])
+s3 = {
+    'reg__estimator__C': [0.5,1.0],
+    'reg__estimator__epsilon': [0.3,0.1],
+}
+p3.get_params()
+```
+
+
+
+The Random Forest reports a more balanced score between validation and training set, and so it does the Stochastic Gradient Descent. The Multi-Output Support Vector Regressor improves generally of a small amount. Values are reported in table A.4 in the appendix.
+
+#### Random Forest Regressor
+
+![](C:\dev\dsnd-spi\writings\output_44_2.png)
+
+#### SGD
+
+![](C:\dev\dsnd-spi\writings\output_44_5.png)
+
+#### Multi-Output Support Vector Regressor
+
+![](C:\dev\dsnd-spi\writings\output_44_8.png)
+
+<br/>
 
 
 
@@ -794,67 +837,9 @@ The model is evaluated against its ability to predict returns. The returns at 1,
 
 
 
-```python
-y2_pred = mdl2.predict(X2.reshape(X2.shape[0],X2.shape[1]*X2.shape[2]))
-```
+#### Data Frame for Returns
 
-
-```python
-# Open, High, Low, Close, Volume, Dividend, Split, Adj_Open, Adj_High, Adj_Low, Adj_Close, Adj_Volume
-RoR = {}
-
-for i,(d,t) in enumerate(zip(dates,tickers)):
-    if not t in RoR.keys():
-        RoR[t] = []
-    ror = ((X2[i][0][6]-X2[i][0][3])/X2[i][0][3])*100
-    RoR[t].append(ror)
-```
-
-
-```python
-y2.shape
-```
-
-
-
-
-    (30653, 1, 4)
-
-
-
-
-```python
-truth = {}
-pred  = {}
-diff  = {}
-tcks  = {'Ticker': tickers}
-dts   = {'Date': dates}
-
-for i in range(4):
-    t = 100*(y2[:,0,i]-X2[:,4,3])/X2[:,4,3]
-    p = 100*(y2_pred[:,i]-X2[:,4,3])/X2[:,4,3]
-    d = p - t
-    truth[i] = t
-    pred[i]  = p
-    diff[i]  = d
-```
-
-#### DataFrame for Returns
-
-Here, we store the returns into a dataframe, reporing truth, predicted and differnce (error) values.
-
-
-```python
-# result dataframe
-df_results = pd.concat([pd.DataFrame(truth,),#columns=['Tr_1day','Tr_7d','Tr_14d','Tr_28d']
-                        pd.DataFrame(pred, ),#columns=['Pr_1day','Pr_7d','Pr_14d','Pr_28d']
-                        pd.DataFrame(diff, ),#columns=['Er_1day','Er_7d','Er_14d','Er_28d']
-                        pd.DataFrame(tcks),pd.DataFrame(dts)],axis=1)
-df_results.head()
-```
-
-
-
+Here, we store the returns into a data frame, reporting truth, predicted and difference (error) values.
 
 <div>
 <style scoped>
@@ -862,31 +847,24 @@ df_results.head()
         vertical-align: middle;
     }
 
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-    
-    .dataframe thead th {
-        text-align: right;
-    }
 </style>
 
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
       <th></th>
-      <th>0</th>
-      <th>1</th>
-      <th>2</th>
-      <th>3</th>
-      <th>0</th>
-      <th>1</th>
-      <th>2</th>
-      <th>3</th>
-      <th>0</th>
-      <th>1</th>
-      <th>2</th>
-      <th>3</th>
+      <th>truth - 1 day</th>
+      <th>truth - 7 days</th>
+      <th>truth - 14 days</th>
+      <th>truth - 28 days</th>
+      <th>predicted - 1 day</th>
+      <th>predicted - 7 day</th>
+      <th>predicted - 14 day</th>
+      <th>predicted - 28 day</th>
+      <th>error - 1 day</th>
+      <th>error - 7 days</th>
+      <th>error - 14 days</th>
+      <th>error - 28 days</th>
       <th>Ticker</th>
       <th>Date</th>
     </tr>
@@ -979,16 +957,8 @@ df_results.head()
     </tr>
   </tbody>
 </table>
+
 </div>
-
-
-
-
-```python
-df_results.describe()
-```
-
-
 
 
 <div>
@@ -997,31 +967,25 @@ df_results.describe()
         vertical-align: middle;
     }
 
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-    
-    .dataframe thead th {
-        text-align: right;
-    }
+
 </style>
 
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
       <th></th>
-      <th>0</th>
-      <th>1</th>
-      <th>2</th>
-      <th>3</th>
-      <th>0</th>
-      <th>1</th>
-      <th>2</th>
-      <th>3</th>
-      <th>0</th>
-      <th>1</th>
-      <th>2</th>
-      <th>3</th>
+      <th>truth - 1 day</th>
+      <th>truth - 7 days</th>
+      <th>truth - 14 days</th>
+      <th>truth - 28 days</th>
+      <th>predicted - 1 day</th>
+      <th>predicted - 7 day</th>
+      <th>predicted - 14 day</th>
+      <th>predicted - 28 day</th>
+      <th>error - 1 day</th>
+      <th>error - 7 days</th>
+      <th>error - 14 days</th>
+      <th>error - 28 days</th>
     </tr>
   </thead>
   <tbody>
@@ -1147,6 +1111,7 @@ df_results.describe()
     </tr>
   </tbody>
 </table>
+
 </div>
 
 
@@ -1157,34 +1122,9 @@ Here, the final results are discussed in detail. We focus on the difference betw
 
 Mean and 95% confidence intervals are plotted below. The error at 1 day shows how the return might be wrong by a nominal -3/+3%. This is quite a lot, so to have an useful guess, we should look for a predicted outcome >3% (albeit further considerations are required). This makes the model being hardly useful as increments >3% in one day refers to quite specific events. A behavioural approach to investment might be considered in such case, however, the model could help in supporting that.
 
-Then, the confidence intervals at 7, 14 and 28 days increase steadily by a further 30% for each days, making the model quite uneffective. We want also to plot a few examples about the returns, to see if it is possible to notice any patterns.
+Then, the confidence intervals at 7, 14 and 28 days increase steadily by a further 30% for each days, making the model quite ineffective. We want also to plot a few examples about the returns, to see if it is possible to notice any patterns.
 
 
-```python
-dds = ['1 day','7 days', '14 days', '28 days']
-fig, axs = plt.subplots(2,2,figsize=(12,8))
-x = np.arange(-20,20,0.1)
-for i in range(len(axs)):
-    for j in range(len(axs[i])):
-        axs[i,j].hist(df_results.iloc[:,8+i*2+j],bins=20, label=dds[i*2+j],density=True)
-        mean = df_results.iloc[:,8+i*2+j].mean()
-        std  = df_results.iloc[:,8+i*2+j].std()
-        y    = stats.norm.pdf(x,mean,std)
-        axs[i,j].plot(x,y,color='red')
-        axs[i,j].text(mean+0.1,y.max(),round(mean,3),)
-        z1 = stats.norm(mean,std).ppf(0.025)
-        z2 = stats.norm(mean,std).ppf(1-0.025)
-        axs[i,j].axvline(z1, ls=':', color='orange', label=z1)
-        axs[i,j].text(z1+0.1,.1,round(z1,3),rotation=90)
-        axs[i,j].axvline(z2, ls=':', color='orange', label=z2)
-        axs[i,j].text(z2+0.1,.1,round(z2,3),rotation=90)
-        axs[i,j].set_xlim((-12,12))
-        axs[i,j].set_ylim((0,0.35))
-        axs[i,j].set_title(dds[i+j])
-        
-plt.tight_layout()
-
-```
 
 
 ![png](output_56_0.png)
@@ -1194,49 +1134,12 @@ Here, returns are plotted for 3 companies. The model produces much stable output
 
 
 ```python
-fig,axs = plt.subplots(3,1,figsize=(17,12))
-
-def show_returns(to_show, shift=0):
-    """Show returns for a set of companies at 1,7,14 or 28 days.
-    
-    Parameters
-    ----------
-    to_show : array-like
-        contains the tickers
-        
-    shift : int
-        0 = 1 day
-        1 = 7 days
-        2 = 14 days
-        3 = 28 days
-    """
-    gs = df_results.groupby('Ticker')
-
-    for n,g in gs:
-        if n in to_show:
-            x = g['Date'].values
-            y1 = g.iloc[:,shift+0].values
-            y2 = g.iloc[:,shift+4].values
-            y3 = g.iloc[:,shift+8].values
-            axs[0].plot(x,y1,label=n)
-            axs[1].plot(x,y2,label=n)
-            axs[2].plot(x,y3,label=n)
-    axs[0].legend()
-    axs[1].legend()
-    axs[2].legend()
-    axs[0].set_ylim((-10,15))
-    axs[1].set_ylim((-10,15))    
-    axs[2].set_ylim((-10,15))
-    axs[0].set_title('Returns - Truth')
-    axs[1].set_title('Returns - Predictions')
-    axs[2].set_title('Returns - Errors')
-    
-# df_results['Ticker'].unique()
 show_returns(['AAPL','AXP','CAT'],0)
 ```
 
 
 ![png](output_58_0.png)
+
 
 
 ## Conclusion
@@ -1247,7 +1150,7 @@ The end-to-end product of this project tries to bring together historical data a
 
 The selection fell on scikit-learn's random forest regressor. An initial overfitting happened due to lack of tuning hyper parameters, corrected by performing a grid search, and training the model through cross-validation (this was possible by creating a pipeline in order to avoid data leaks on cross validation).
 
-Results were tested against analysing rate on returns, or RoR, and so by comparing the predicted with true returns. By doing so, it was possible to define a confidence interval relative to each time range. 7-days returns shows a 95% confidence interval of about -/+5% which was within the project's guidelines, however, by far a result to be considered good in  real-world business scenario.
+Results were tested against analysing rate on returns, or RoR, and so by comparing the predicted with true returns. By doing so, it was possible to define a confidence interval relative to each time range. 7-days returns shows a 95% confidence interval of about -/+7% which is above the project's guidelines. Problems like reliable stock predictors requires a continuous implementation to keep the system effective by constantly digesting last-day data. In fact, by far the result has to be considered good in real-world business scenario.
 
 Developing knowledge of time series as well as of investment principles and returns calculation was one of the most interesting aspect of the project. 
 
@@ -1255,7 +1158,7 @@ Developing knowledge of time series as well as of investment principles and retu
 
 The nature of the problem, as well as the data here digested presents a high degree of non-linearity. Improvements to the system can be made by choosing a different model (e.g. SVM regressor to be trained on each time range) which is more prone to capture highly non-linear patterns. Eventually, going for a deep neural network might help: nlp-oriented techniques such as RNN or LSTM might be used to also include the temporality of the data (here, the window is digested as a flat vector by the model).
 
-Then, further feature engineering might be required. For instance, returns might be included. Moreover, company-specific indices might help in determining the volatility of the company, or their financial status such as quarterly reports data.
+Then, further feature engineering might be required. For instance, returns might be included. Moreover, company-specific indices might help in determining the volatility of the company, or their financial status such as quarterly reports data. Moreover, such data should be daily added by undertaking incremental learning strategies in order to keep the model up-to-date.
 
 Finally, test of the window size might be run in order to see how this affect our model. However, to avoid increasing the dimensionality of data too much without providing a time-related approach to train our model (such in the case of a LSTM), might produce worse rather than better results.
 
